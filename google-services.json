@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1036868902680",
+    "project_id": "loginpbp-b6ee2",
+    "storage_bucket": "loginpbp-b6ee2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1036868902680:android:d873db1857dca43744886d",
+        "android_client_info": {
+          "package_name": "com.appname"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDhDYlJ6Cg3zqGsG0A_c1XCH5fwCaO6yoY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
