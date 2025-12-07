@@ -1,5 +1,5 @@
 import { FirebaseOptions, getApps, initializeApp } from 'firebase/app';
-import { Persistence, getAuth, initializeAuth } from 'firebase/auth';
+import { getAuth, initializeAuth } from 'firebase/auth';
 import { collection, getDocs, getFirestore } from 'firebase/firestore';
 
 import { firebaseConfig } from '@/constants/firebaseConfig';
@@ -17,14 +17,30 @@ type Store = {
   getString: (key: string) => string | undefined;
   set: (key: string, value: string) => void;
   delete: (key: string) => void;
+  getItem: (key: string) => Promise<string | null>;
+  setItem: (key: string, value: string) => Promise<void>;
+  removeItem: (key: string) => Promise<void>;
 };
 
 const createMemoryStore = (): Store => {
   const mem = new Map<string, string>();
   return {
-    getString: (key) => mem.get(key),
-    set: (key, value) => void mem.set(key, value),
-    delete: (key) => void mem.delete(key),
+    getString: (key: string) => mem.get(key),
+    set: (key: string, value: string) => {
+      mem.set(key, value);
+    },
+    delete: (key: string) => {
+      mem.delete(key);
+    },
+    async getItem(key: string) {
+      return mem.get(key) ?? null;
+    },
+    async setItem(key: string, value: string) {
+      mem.set(key, value);
+    },
+    async removeItem(key: string) {
+      mem.delete(key);
+    },
   };
 };
 
@@ -33,7 +49,25 @@ try {
   // Dynamically require to avoid crashing when the native module isn't present (e.g., Expo Go).
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { MMKV } = require('react-native-mmkv');
-  mmkvStorage = new MMKV();
+  const mmkv = new MMKV();
+  mmkvStorage = {
+    getString: (key: string) => mmkv.getString(key) ?? undefined,
+    set: (key: string, value: string) => {
+      mmkv.set(key, value);
+    },
+    delete: (key: string) => {
+      mmkv.delete(key);
+    },
+    async getItem(key: string) {
+      return mmkv.getString(key) ?? null;
+    },
+    async setItem(key: string, value: string) {
+      mmkv.set(key, value);
+    },
+    async removeItem(key: string) {
+      mmkv.delete(key);
+    },
+  };
 } catch (error) {
   console.warn('MMKV native module tidak tersedia, fallback ke memory store sementara.', error);
   mmkvStorage = createMemoryStore();
@@ -41,20 +75,38 @@ try {
 
 export { mmkvStorage };
 
-const mmkvPersistence: Persistence = {
+type LocalPersistence = {
+  type: 'LOCAL';
+  _isAvailable(): Promise<boolean>;
+  _set(key: string, value: string): Promise<void>;
+  _get<T>(key: string): Promise<T | null>;
+  _remove(key: string): Promise<void>;
+  _addListener(key: string, listener: () => void): void;
+  _removeListener(key: string, listener: () => void): void;
+  _shouldAllowMigration?: boolean;
+};
+
+const mmkvPersistence: LocalPersistence = {
   type: 'LOCAL',
   async _isAvailable() {
     return true;
   },
-  async _set(key, value) {
-    mmkvStorage.set(key, value);
+  async _set(key: string, value: string) {
+    await mmkvStorage.setItem(key, value);
   },
-  async _get(key) {
-    return mmkvStorage.getString(key) ?? null;
+  async _get<T>(key: string) {
+    return (await mmkvStorage.getItem(key)) as T | null;
   },
-  async _remove(key) {
-    mmkvStorage.delete(key);
+  async _remove(key: string) {
+    await mmkvStorage.removeItem(key);
   },
+  _addListener() {
+    // No storage events to broadcast in this custom store.
+  },
+  _removeListener() {
+    // No-op since _addListener is inert.
+  },
+  _shouldAllowMigration: false,
 };
 
 let authInstance = getAuth(app);
